@@ -327,28 +327,28 @@ const RESPOSTAS_DEMO = {
 };
 function FalarComIA() {
   const [mensagens, setMensagens] = useState([
-    { de: "ia", texto: "Central Karnopp pronta. Selecione uma sugestão abaixo ou digite sua pergunta." },
+    { de: "ia", texto: "Central Karnopp pronta. Toque numa das opções abaixo." },
   ]);
-  const [input, setInput] = useState("");
   const fimRef = useRef(null);
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [mensagens]);
 
+  const SUGESTOES = [
+    "Vila Madalena", "Pinheiros", "Itaim Bibi", "Moema",
+    "Imóvel mais caro", "Imóvel mais barato", "Imóvel parado há mais tempo",
+    "Carla Nogueira", "Marcos Andrade", "Fernanda Lima",
+    "Oportunidades", "Compradores",
+  ];
+
   function enviar(texto) {
-    if (!texto.trim()) return;
     setMensagens(m => [...m, { de: "user", texto }]);
-    setInput("");
-    const chave = Object.keys(RESPOSTAS_DEMO).find(k => texto.toLowerCase().includes(k));
-    const resposta = chave ? RESPOSTAS_DEMO[chave] : "Essa é uma demonstração — nessa pergunta específica a IA ainda não tem uma resposta pronta no protótipo.";
-    setTimeout(() => setMensagens(m => [...m, { de: "ia", texto: resposta }]), 500);
+    const resposta = responderPergunta(texto);
+    setTimeout(() => setMensagens(m => [...m, { de: "ia", texto: resposta }]), 400);
   }
 
   return (
     <div>
       <SectionLabel text="Falar com Karnopp" icon={<MessageSquare size={11} color={C.textFaint} />} />
-      <div style={{ fontFamily: MONO, fontSize: 9.5, color: C.textFaint, marginBottom: 12, lineHeight: 1.5 }}>
-        demonstração — respostas pré-definidas, sem IA generativa conectada ainda
-      </div>
-      <div style={{ border: `1px solid ${C.line}`, borderRadius: 4, background: C.panel, padding: "12px", height: 230, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+      <div style={{ border: `1px solid ${C.line}`, borderRadius: 4, background: C.panel, padding: "12px", height: 230, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
         {mensagens.map((m, i) => (
           <div key={i} style={{ alignSelf: m.de === "ia" ? "flex-start" : "flex-end", maxWidth: "82%" }}>
             <div style={{
@@ -360,27 +360,19 @@ function FalarComIA() {
         ))}
         <div ref={fimRef} />
       </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-        {Object.keys(RESPOSTAS_DEMO).map(k => (
-          <button key={k} onClick={() => enviar(k.charAt(0).toUpperCase() + k.slice(1))} style={{
+      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1, color: C.textFaint, textTransform: "uppercase", marginBottom: 8 }}>Toque para perguntar</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {SUGESTOES.map(s => (
+          <button key={s} onClick={() => enviar(s)} style={{
             fontFamily: MONO, fontSize: 9.5, color: C.textDim, background: "transparent",
-            border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 10px", cursor: "pointer",
-          }}>{k}</button>
+            border: `1px solid ${C.line}`, borderRadius: 20, padding: "6px 11px", cursor: "pointer",
+          }}>{s}</button>
         ))}
-      </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && enviar(input)}
-          placeholder="Digite sua pergunta…" style={{
-            flex: 1, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 4,
-            padding: "10px 12px", color: C.text, fontFamily: SANS, fontSize: 13, outline: "none",
-          }} />
-        <button onClick={() => enviar(input)} style={{
-          border: `1px solid ${C.line}`, borderRadius: 4, background: C.panel, padding: "0 12px", cursor: "pointer",
-        }}><Send size={14} color={C.textDim} /></button>
       </div>
     </div>
   );
 }
+
 
 export default function KarnoppIA() {
   const [aba, setAba] = useState("geral");
