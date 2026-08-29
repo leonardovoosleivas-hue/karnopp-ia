@@ -273,9 +273,24 @@ function Gauge({ score, size = 78 }) {
   );
 }
 
+function EstadoVazio({ texto }) {
+  return (
+    <div style={{ textAlign: "center", padding: "50px 20px", border: `1px dashed ${C.border}`, borderRadius: 12 }}>
+      <Sparkles size={24} color={C.textFaint} style={{ marginBottom: 12 }} />
+      <div style={{ fontFamily: SANS, fontSize: 14.5, color: C.textDim, lineHeight: 1.6 }}>{texto}</div>
+    </div>
+  );
+}
+
 function Matches() {
-  const [clienteId, setClienteId] = useState(CLIENTES[0].id);
-  const cliente = CLIENTES.find(c => c.id === Number(clienteId));
+  const [clienteId, setClienteId] = useState(CLIENTES[0]?.id);
+  if (CLIENTES.length === 0) {
+    return <EstadoVazio texto="Nenhum cliente cadastrado ainda. Cadastre um cliente na aba Clientes para ver os matches." />;
+  }
+  if (IMOVEIS.length === 0) {
+    return <EstadoVazio texto="Nenhum imóvel cadastrado ainda. Cadastre um imóvel na aba Imóveis para ver os matches." />;
+  }
+  const cliente = CLIENTES.find(c => c.id === Number(clienteId)) || CLIENTES[0];
   const ranking = useMemo(() => IMOVEIS.map(im => ({ imovel: im, ...calcularScore(cliente, im) })).sort((a, b) => b.score - a.score), [cliente]);
   const top = ranking[0];
   return (
