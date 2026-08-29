@@ -1,22 +1,53 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Home, Users, TrendingUp, Sparkles, AlertTriangle, Search, MessageSquare, BarChart3, Send } from "lucide-react";
+import { Home, Users, TrendingUp, Sparkles, AlertTriangle, Search, MessageSquare, BarChart3, Send, Plus, X } from "lucide-react";
+import { supabase } from "./supabaseClient";
 
-// ---------- DADOS DE DEMONSTRAÇÃO (fictícios) ----------
-const IMOVEIS = [
-  { id: 1, titulo: "Apto 2q Vila Madalena", bairro: "Vila Madalena", preco: 620000, quartos: 2, area: 68, caracteristicas: ["varanda", "vaga", "pet friendly"], diasNoMercado: 12, interessados: 6 },
-  { id: 2, titulo: "Casa 3q Alto de Pinheiros", bairro: "Alto de Pinheiros", preco: 1450000, quartos: 3, area: 180, caracteristicas: ["quintal", "churrasqueira", "2 vagas"], diasNoMercado: 45, interessados: 2 },
-  { id: 3, titulo: "Apto 1q Perdizes", bairro: "Perdizes", preco: 380000, quartos: 1, area: 42, caracteristicas: ["mobiliado", "próximo ao metrô"], diasNoMercado: 5, interessados: 9 },
-  { id: 4, titulo: "Cobertura Itaim Bibi", bairro: "Itaim Bibi", preco: 2100000, quartos: 3, area: 210, caracteristicas: ["piscina privativa", "vista livre", "2 vagas"], diasNoMercado: 90, interessados: 1 },
-  { id: 5, titulo: "Apto 3q Moema", bairro: "Moema", preco: 980000, quartos: 3, area: 110, caracteristicas: ["varanda gourmet", "próximo ao parque", "2 vagas"], diasNoMercado: 20, interessados: 4 },
-  { id: 6, titulo: "Casa 2q Vila Mariana", bairro: "Vila Mariana", preco: 720000, quartos: 2, area: 95, caracteristicas: ["quintal pequeno", "1 vaga"], diasNoMercado: 8, interessados: 5 },
-  { id: 7, titulo: "Apto 2q Pinheiros", bairro: "Pinheiros", preco: 710000, quartos: 2, area: 72, caracteristicas: ["varanda", "academia no prédio", "vaga"], diasNoMercado: 33, interessados: 3 },
-];
-const CLIENTES = [
-  { id: 1, nome: "Carla Nogueira", idade: 34, orcamentoMin: 500000, orcamentoMax: 700000, bairrosDesejados: ["Vila Madalena", "Pinheiros"], quartosMin: 2, prioridades: ["pet friendly", "varanda"], estagio: "decisão", ultimaInteracao: "há 2 dias" },
-  { id: 2, nome: "Marcos Andrade", idade: 41, orcamentoMin: 1200000, orcamentoMax: 1700000, bairrosDesejados: ["Alto de Pinheiros", "Itaim Bibi"], quartosMin: 3, prioridades: ["quintal", "2 vagas"], estagio: "pesquisa", ultimaInteracao: "há 9 dias" },
-  { id: 3, nome: "Fernanda Lima", idade: 28, orcamentoMin: 300000, orcamentoMax: 420000, bairrosDesejados: ["Perdizes", "Vila Madalena"], quartosMin: 1, prioridades: ["mobiliado", "próximo ao metrô"], estagio: "visitando", ultimaInteracao: "há 1 dia" },
-  { id: 4, nome: "Roberto e Ana Diniz", idade: 45, orcamentoMin: 900000, orcamentoMax: 1100000, bairrosDesejados: ["Moema", "Vila Mariana"], quartosMin: 3, prioridades: ["varanda gourmet", "2 vagas"], estagio: "pesquisa", ultimaInteracao: "há 5 dias" },
-];
+// ---------- DADOS (populados a partir do Supabase; começam vazios) ----------
+let IMOVEIS = [];
+let CLIENTES = [];
+
+function mapImovel(row) {
+  return {
+    id: row.id, titulo: row.titulo, bairro: row.bairro, preco: row.preco,
+    quartos: row.quartos, area: row.area, caracteristicas: row.caracteristicas || [],
+    diasNoMercado: row.dias_no_mercado || 0, interessados: row.interessados || 0,
+  };
+}
+function mapCliente(row) {
+  return {
+    id: row.id, nome: row.nome, idade: row.idade || null,
+    orcamentoMin: row.orcamento_min, orcamentoMax: row.orcamento_max,
+    bairrosDesejados: row.bairros_desejados || [], quartosMin: row.quartos_min,
+    prioridades: row.prioridades || [], estagio: row.estagio || "—",
+    ultimaInteracao: row.ultima_interacao || "—",
+  };
+}
+async function carregarDados() {
+  const { data: imoveisData } = await supabase.from("imoveis").select("*").order("id");
+  const { data: clientesData } = await supabase.from("clientes").select("*").order("id");
+  IMOVEIS = (imoveisData || []).map(mapImovel);
+  CLIENTES = (clientesData || []).map(mapCliente);
+}
+async function inserirImovel(campos) {
+  const { error } = await supabase.from("imoveis").insert([{
+    titulo: campos.titulo, bairro: campos.bairro, preco: Number(campos.preco),
+    quartos: Number(campos.quartos), area: Number(campos.area),
+    caracteristicas: campos.caracteristicas.split(",").map(s => s.trim()).filter(Boolean),
+    dias_no_mercado: 0,
+  }]);
+  return error;
+}
+async function inserirCliente(campos) {
+  const { error } = await supabase.from("clientes").insert([{
+    nome: campos.nome, orcamento_min: Number(campos.orcamentoMin), orcamento_max: Number(campos.orcamentoMax),
+    bairros_desejados: campos.bairrosDesejados.split(",").map(s => s.trim()).filter(Boolean),
+    quartos_min: Number(campos.quartosMin),
+    prioridades: campos.prioridades.split(",").map(s => s.trim()).filter(Boolean),
+    estagio: campos.estagio || "pesquisa",
+  }]);
+  return error;
+}
+
 
 function calcularScore(cliente, imovel) {
   let score = 0; let motivos = [];
@@ -385,16 +416,68 @@ function PerfilCliente({ cliente, voltar }) {
   );
 }
 
-function ClientesView() {
+function FormularioCliente({ fechar, atualizar }) {
+  const [campos, setCampos] = useState({ nome: "", orcamentoMin: "", orcamentoMax: "", bairrosDesejados: "", quartosMin: "", prioridades: "", estagio: "pesquisa" });
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const set = (k) => (e) => setCampos(c => ({ ...c, [k]: e.target.value }));
+
+  async function salvar() {
+    if (!campos.nome || !campos.orcamentoMin || !campos.orcamentoMax) { setErro("Preencha ao menos nome e orçamento."); return; }
+    setSalvando(true);
+    const erroInsert = await inserirCliente(campos);
+    setSalvando(false);
+    if (erroInsert) { setErro(erroInsert.message); return; }
+    atualizar();
+    fechar();
+  }
+
+  const campo = (label, key, placeholder) => (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontFamily: MONO, fontSize: 11, color: C.textFaint, marginBottom: 5, textTransform: "uppercase" }}>{label}</div>
+      <input value={campos[key]} onChange={set(key)} placeholder={placeholder} style={{ width: "100%", padding: "11px 13px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg1, color: C.text, fontFamily: SANS, fontSize: 14, outline: "none" }} />
+    </div>
+  );
+
+  return (
+    <div style={{ border: `1px solid ${C.borderGold}`, borderRadius: 12, padding: 18, marginBottom: 18, background: C.panel }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontFamily: SANS, fontSize: 16, color: C.text, fontWeight: 600 }}>Cadastrar cliente</div>
+        <button onClick={fechar} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.textFaint} /></button>
+      </div>
+      {campo("Nome", "nome", "Ex: João Silva")}
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}>{campo("Orçamento mín. (R$)", "orcamentoMin", "500000")}</div>
+        <div style={{ flex: 1 }}>{campo("Orçamento máx. (R$)", "orcamentoMax", "700000")}</div>
+      </div>
+      {campo("Bairros desejados (separados por vírgula)", "bairrosDesejados", "Vila Madalena, Pinheiros")}
+      {campo("Quartos mínimos", "quartosMin", "2")}
+      {campo("Prioridades (separadas por vírgula)", "prioridades", "varanda, pet friendly")}
+      {erro && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#e07a70", marginBottom: 10 }}>{erro}</div>}
+      <button onClick={salvar} disabled={salvando} style={{ width: "100%", padding: 13, borderRadius: 8, border: "none", cursor: "pointer", background: C.gold, color: "#1a0a08", fontFamily: SANS, fontSize: 14.5, fontWeight: 700 }}>
+        {salvando ? "Salvando…" : "Salvar cliente"}
+      </button>
+    </div>
+  );
+}
+
+function ClientesView({ atualizar }) {
   const [busca, setBusca] = useState("");
   const [selecionado, setSelecionado] = useState(null);
+  const [mostrarForm, setMostrarForm] = useState(false);
   const filtrados = useMemo(() => CLIENTES.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()) || c.bairrosDesejados.some(b => b.toLowerCase().includes(busca.toLowerCase()))), [busca]);
 
   if (selecionado) return <PerfilCliente cliente={selecionado} voltar={() => setSelecionado(null)} />;
 
   return (
     <div>
-      <SectionLabel text="Clientes" icon={<Users size={12} color={C.gold} />} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <SectionLabel text="Clientes" icon={<Users size={12} color={C.gold} />} />
+        <button onClick={() => setMostrarForm(v => !v)} className="k-card" style={{ display: "flex", alignItems: "center", gap: 5, border: `1px solid ${C.borderGold}`, background: C.goldSoft, color: C.gold, borderRadius: 8, padding: "7px 11px", fontFamily: SANS, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+          <Plus size={14} /> Novo
+        </button>
+      </div>
+      {mostrarForm && <FormularioCliente fechar={() => setMostrarForm(false)} atualizar={atualizar} />}
       <SearchBar value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por nome ou bairro…" />
       <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
         {filtrados.map(c => {
@@ -458,16 +541,68 @@ function PerfilImovel({ imovel, voltar }) {
   );
 }
 
-function ImoveisView() {
+function FormularioImovel({ fechar, atualizar }) {
+  const [campos, setCampos] = useState({ titulo: "", bairro: "", preco: "", quartos: "", area: "", caracteristicas: "" });
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const set = (k) => (e) => setCampos(c => ({ ...c, [k]: e.target.value }));
+
+  async function salvar() {
+    if (!campos.titulo || !campos.bairro || !campos.preco) { setErro("Preencha ao menos título, bairro e preço."); return; }
+    setSalvando(true);
+    const erroInsert = await inserirImovel(campos);
+    setSalvando(false);
+    if (erroInsert) { setErro(erroInsert.message); return; }
+    atualizar();
+    fechar();
+  }
+
+  const campo = (label, key, placeholder) => (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontFamily: MONO, fontSize: 11, color: C.textFaint, marginBottom: 5, textTransform: "uppercase" }}>{label}</div>
+      <input value={campos[key]} onChange={set(key)} placeholder={placeholder} style={{ width: "100%", padding: "11px 13px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg1, color: C.text, fontFamily: SANS, fontSize: 14, outline: "none" }} />
+    </div>
+  );
+
+  return (
+    <div style={{ border: `1px solid ${C.borderGold}`, borderRadius: 12, padding: 18, marginBottom: 18, background: C.panel }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontFamily: SANS, fontSize: 16, color: C.text, fontWeight: 600 }}>Cadastrar imóvel</div>
+        <button onClick={fechar} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.textFaint} /></button>
+      </div>
+      {campo("Título", "titulo", "Ex: Apto 2q Vila Madalena")}
+      {campo("Bairro", "bairro", "Vila Madalena")}
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}>{campo("Preço (R$)", "preco", "620000")}</div>
+        <div style={{ flex: 1 }}>{campo("Quartos", "quartos", "2")}</div>
+        <div style={{ flex: 1 }}>{campo("Área (m²)", "area", "68")}</div>
+      </div>
+      {campo("Características (separadas por vírgula)", "caracteristicas", "varanda, vaga, pet friendly")}
+      {erro && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#e07a70", marginBottom: 10 }}>{erro}</div>}
+      <button onClick={salvar} disabled={salvando} style={{ width: "100%", padding: 13, borderRadius: 8, border: "none", cursor: "pointer", background: C.gold, color: "#1a0a08", fontFamily: SANS, fontSize: 14.5, fontWeight: 700 }}>
+        {salvando ? "Salvando…" : "Salvar imóvel"}
+      </button>
+    </div>
+  );
+}
+
+function ImoveisView({ atualizar }) {
   const [busca, setBusca] = useState("");
   const [selecionado, setSelecionado] = useState(null);
+  const [mostrarForm, setMostrarForm] = useState(false);
   const filtrados = useMemo(() => IMOVEIS.filter(im => im.titulo.toLowerCase().includes(busca.toLowerCase()) || im.bairro.toLowerCase().includes(busca.toLowerCase())), [busca]);
 
   if (selecionado) return <PerfilImovel imovel={selecionado} voltar={() => setSelecionado(null)} />;
 
   return (
     <div>
-      <SectionLabel text="Imóveis" icon={<Home size={12} color={C.gold} />} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <SectionLabel text="Imóveis" icon={<Home size={12} color={C.gold} />} />
+        <button onClick={() => setMostrarForm(v => !v)} className="k-card" style={{ display: "flex", alignItems: "center", gap: 5, border: `1px solid ${C.borderGold}`, background: C.goldSoft, color: C.gold, borderRadius: 8, padding: "7px 11px", fontFamily: SANS, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+          <Plus size={14} /> Novo
+        </button>
+      </div>
+      {mostrarForm && <FormularioImovel fechar={() => setMostrarForm(false)} atualizar={atualizar} />}
       <SearchBar value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por título ou bairro…" />
       <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
         {filtrados.map(im => (
@@ -625,6 +760,13 @@ function CorretoresView() {
 export default function KarnoppIA() {
   const [usuario, setUsuario] = useState(null);
   const [aba, setAba] = useState("insights");
+  const [carregando, setCarregando] = useState(true);
+  const [versaoDados, setVersaoDados] = useState(0);
+  const atualizarDados = () => carregarDados().then(() => setVersaoDados(v => v + 1));
+
+  useEffect(() => {
+    if (usuario) { setCarregando(true); carregarDados().then(() => setCarregando(false)); }
+  }, [usuario]);
 
   if (!usuario) {
     return (
@@ -639,6 +781,22 @@ export default function KarnoppIA() {
           .k-card:active { transform: scale(0.97); }
         `}</style>
         <TelaLogin onEntrar={setUsuario} />
+      </div>
+    );
+  }
+
+  if (carregando) {
+    return (
+      <div style={{ fontFamily: SANS, background: C.bg0, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+        <style>{`
+          @keyframes rotL { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+          @keyframes rotR { from { transform: rotate(360deg);} to { transform: rotate(0deg);} }
+          @keyframes pulseCore { 0%,100% { opacity: 0.6; transform: scale(1);} 50% { opacity: 0.95; transform: scale(1.05);} }
+          @keyframes orbit { from { transform: rotate(0deg) translateX(90px) rotate(0deg);} to { transform: rotate(360deg) translateX(90px) rotate(-360deg);} }
+          @keyframes sweep { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+        `}</style>
+        <NucleoIA />
+        <div style={{ fontFamily: MONO, fontSize: 12, color: C.gold, letterSpacing: 1.5 }}>CARREGANDO DADOS DO BANCO…</div>
       </div>
     );
   }
@@ -696,8 +854,8 @@ export default function KarnoppIA() {
 
         {aba === "insights" && <Insights irPara={setAba} />}
         {aba === "geral" && <VisaoGeral irPara={setAba} />}
-        {aba === "clientes" && <ClientesView />}
-        {aba === "imoveis" && <ImoveisView />}
+        {aba === "clientes" && <ClientesView key={"c" + versaoDados} atualizar={atualizarDados} />}
+        {aba === "imoveis" && <ImoveisView key={"i" + versaoDados} atualizar={atualizarDados} />}
         {aba === "matches" && <Matches />}
         {aba === "oportunidades" && <Oportunidades />}
         {aba === "corretores" && <CorretoresView />}
