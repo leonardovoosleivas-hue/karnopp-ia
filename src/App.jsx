@@ -29,21 +29,23 @@ async function carregarDados() {
   CLIENTES = (clientesData || []).map(mapCliente);
 }
 async function inserirImovel(campos) {
+  const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase.from("imoveis").insert([{
     titulo: campos.titulo, bairro: campos.bairro, preco: Number(campos.preco),
     quartos: Number(campos.quartos), area: Number(campos.area),
     caracteristicas: campos.caracteristicas.split(",").map(s => s.trim()).filter(Boolean),
-    dias_no_mercado: 0,
+    dias_no_mercado: 0, user_id: user?.id,
   }]);
   return error;
 }
 async function inserirCliente(campos) {
+  const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase.from("clientes").insert([{
     nome: campos.nome, orcamento_min: Number(campos.orcamentoMin), orcamento_max: Number(campos.orcamentoMax),
     bairros_desejados: campos.bairrosDesejados.split(",").map(s => s.trim()).filter(Boolean),
     quartos_min: Number(campos.quartosMin),
     prioridades: campos.prioridades.split(",").map(s => s.trim()).filter(Boolean),
-    estagio: campos.estagio || "pesquisa",
+    estagio: campos.estagio || "pesquisa", user_id: user?.id,
   }]);
   return error;
 }
@@ -89,9 +91,9 @@ function responderPergunta(texto) {
 // ---------- TOKENS — elevado, com acento dourado ----------
 const C = {
   bg0: "#0a0a0d", bg1: "#111116", panel: "#17171e", panelHover: "#1d1d25",
-  border: "rgba(255,255,255,0.09)", borderGold: "rgba(217,79,63,0.4)",
+  border: "rgba(255,255,255,0.09)", borderGold: "rgba(111,155,255,0.4)",
   text: "#f3f2ee", textDim: "#9c9aa5", textFaint: "#5c5a66",
-  gold: "#d94f3f", goldSoft: "rgba(217,79,63,0.16)", goldGlow: "rgba(217,79,63,0.6)",
+  gold: "#6f9bff", goldSoft: "rgba(111,155,255,0.16)", goldGlow: "rgba(111,155,255,0.6)",
 };
 const MONO = "ui-monospace, 'SF Mono', 'Cascadia Code', monospace";
 const SANS = "-apple-system, 'Inter', system-ui, sans-serif";
@@ -716,6 +718,9 @@ function FalarComIA() {
   );
 }
 
+const EMPRESAS = [
+  { id: "karnopp", nome: "Karnopp", tipo: "Imobiliária" },
+];
 const CORRETORES = [
   { id: 1, nome: "Você (Admin)", cargo: "Administrador" },
   { id: 2, nome: "Juliano Karnopp", cargo: "Diretor" },
@@ -723,34 +728,91 @@ const CORRETORES = [
   { id: 4, nome: "Diego Ramos", cargo: "Corretor" },
 ];
 
-function TelaLogin({ onEntrar }) {
-  const [selecionado, setSelecionado] = useState(null);
+function TelaSelecionarEmpresa({ onSelecionar }) {
+  const [selecionada, setSelecionada] = useState(null);
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
-        <div style={{ fontFamily: MONO, fontSize: 13, letterSpacing: 5, color: C.text, fontWeight: 600 }}>KARNOPP</div>
-        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 2, color: C.gold, marginTop: 4, marginBottom: 28 }}>INTELIGÊNCIA IMOBILIÁRIA</div>
+        <div style={{ fontFamily: SANS, fontSize: 20, letterSpacing: 6, color: C.text, fontWeight: 600 }}>POLARIS</div>
+        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 3, color: C.gold, marginTop: 3, marginBottom: 6 }}>INTELLIGENCE</div>
+        <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1.5, color: C.textFaint, marginBottom: 28 }}>by Leivas</div>
         <NucleoIA />
-        <div style={{ fontFamily: SANS, fontSize: 15, color: C.textDim, margin: "26px 0 16px" }}>Selecione seu acesso</div>
+        <div style={{ fontFamily: SANS, fontSize: 15, color: C.textDim, margin: "26px 0 16px" }}>Selecione sua empresa</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 22 }}>
-          {CORRETORES.map(c => (
-            <button key={c.id} onClick={() => setSelecionado(c)} className="k-card" style={{
+          {EMPRESAS.map(e => (
+            <button key={e.id} onClick={() => setSelecionada(e)} className="k-card" style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "13px 16px", borderRadius: 10, cursor: "pointer", textAlign: "left",
-              border: selecionado?.id === c.id ? `1px solid ${C.borderGold}` : `1px solid ${C.border}`,
-              background: selecionado?.id === c.id ? C.goldSoft : C.panel,
+              border: selecionada?.id === e.id ? `1px solid ${C.borderGold}` : `1px solid ${C.border}`,
+              background: selecionada?.id === e.id ? C.goldSoft : C.panel,
             }}>
-              <span style={{ fontFamily: SANS, fontSize: 14.5, color: C.text, fontWeight: 500 }}>{c.nome}</span>
-              <span style={{ fontFamily: MONO, fontSize: 10.5, color: C.textFaint }}>{c.cargo}</span>
+              <span style={{ fontFamily: SANS, fontSize: 14.5, color: C.text, fontWeight: 500 }}>{e.nome}</span>
+              <span style={{ fontFamily: MONO, fontSize: 10.5, color: C.textFaint }}>{e.tipo}</span>
             </button>
           ))}
         </div>
-        <button disabled={!selecionado} onClick={() => onEntrar(selecionado)} style={{
-          width: "100%", padding: "15px", borderRadius: 10, border: "none", cursor: selecionado ? "pointer" : "not-allowed",
-          background: selecionado ? C.gold : C.panel, color: selecionado ? "#1a0a08" : C.textFaint,
+        <button disabled={!selecionada} onClick={() => onSelecionar(selecionada)} style={{
+          width: "100%", padding: "15px", borderRadius: 10, border: "none", cursor: selecionada ? "pointer" : "not-allowed",
+          background: selecionada ? C.gold : C.panel, color: selecionada ? "#071018" : C.textFaint,
           fontFamily: SANS, fontSize: 15, fontWeight: 700,
-        }}>Entrar na Central</button>
-        <div style={{ fontFamily: MONO, fontSize: 9, color: C.textFaint, marginTop: 14 }}>login de demonstração — autenticação real na próxima etapa</div>
+        }}>Continuar</button>
+        <div style={{ fontFamily: MONO, fontSize: 9, color: C.textFaint, marginTop: 14 }}>plataforma multi-empresa — cada empresa vê só seus próprios dados</div>
+      </div>
+    </div>
+  );
+}
+
+function TelaLogin({ empresa, onEntrar, voltar }) {
+  const [modo, setModo] = useState("entrar"); // "entrar" | "criar"
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  async function enviar() {
+    if (!email || !senha) { setErro("Preencha email e senha."); return; }
+    setErro(null); setCarregando(true);
+    const { data, error } = modo === "entrar"
+      ? await supabase.auth.signInWithPassword({ email, password: senha })
+      : await supabase.auth.signUp({ email, password: senha });
+    setCarregando(false);
+    if (error) { setErro(error.message); return; }
+    if (modo === "criar" && !data.session) { setErro("Conta criada! Verifique seu email para confirmar antes de entrar."); return; }
+    onEntrar(data.user);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ maxWidth: 380, width: "100%" }}>
+        <button onClick={voltar} style={{ background: "none", border: "none", color: C.gold, fontFamily: MONO, fontSize: 11, letterSpacing: 1, cursor: "pointer", padding: 0, marginBottom: 20 }}>← trocar empresa</button>
+        <div style={{ textAlign: "center", marginBottom: 26 }}>
+          <div style={{ fontFamily: SANS, fontSize: 18, letterSpacing: 4, color: C.text, fontWeight: 600 }}>{empresa.nome.toUpperCase()}</div>
+          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: C.textFaint, marginTop: 3 }}>powered by POLARIS INTELLIGENCE</div>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 20, background: C.panel, padding: 4, borderRadius: 10, border: `1px solid ${C.border}` }}>
+          {[["entrar", "Entrar"], ["criar", "Criar conta"]].map(([id, label]) => (
+            <button key={id} onClick={() => setModo(id)} style={{
+              flex: 1, padding: "10px", borderRadius: 7, border: "none", cursor: "pointer",
+              background: modo === id ? C.gold : "transparent", color: modo === id ? "#071018" : C.textDim,
+              fontFamily: SANS, fontSize: 13.5, fontWeight: 600,
+            }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: C.textFaint, marginBottom: 5, textTransform: "uppercase" }}>Email</div>
+          <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="seu@email.com" style={{ width: "100%", padding: "13px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.panel, color: C.text, fontFamily: SANS, fontSize: 15, outline: "none" }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: C.textFaint, marginBottom: 5, textTransform: "uppercase" }}>Senha</div>
+          <input value={senha} onChange={e => setSenha(e.target.value)} type="password" placeholder="••••••••" style={{ width: "100%", padding: "13px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.panel, color: C.text, fontFamily: SANS, fontSize: 15, outline: "none" }} />
+        </div>
+        {erro && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#e07a70", marginBottom: 14 }}>{erro}</div>}
+        <button onClick={enviar} disabled={carregando} style={{
+          width: "100%", padding: "15px", borderRadius: 10, border: "none", cursor: "pointer",
+          background: C.gold, color: "#071018", fontFamily: SANS, fontSize: 15, fontWeight: 700,
+        }}>{carregando ? "Aguarde…" : modo === "entrar" ? "Entrar" : "Criar conta"}</button>
       </div>
     </div>
   );
@@ -773,6 +835,7 @@ function CorretoresView() {
 }
 
 export default function KarnoppIA() {
+  const [empresa, setEmpresa] = useState(null);
   const [usuario, setUsuario] = useState(null);
   const [aba, setAba] = useState("insights");
   const [carregando, setCarregando] = useState(true);
@@ -780,22 +843,38 @@ export default function KarnoppIA() {
   const atualizarDados = () => carregarDados().then(() => setVersaoDados(v => v + 1));
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => { if (data.session) setUsuario(data.session.user); });
+  }, []);
+
+  useEffect(() => {
     if (usuario) { setCarregando(true); carregarDados().then(() => setCarregando(false)); }
   }, [usuario]);
 
+  const estiloFundo = { fontFamily: SANS, background: `radial-gradient(ellipse at 50% -10%, #0d1424 0%, ${C.bg0} 55%)`, minHeight: "100%" };
+  const animacoes = `
+    @keyframes rotL { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+    @keyframes rotR { from { transform: rotate(360deg);} to { transform: rotate(0deg);} }
+    @keyframes pulseCore { 0%,100% { opacity: 0.6; transform: scale(1);} 50% { opacity: 0.95; transform: scale(1.05);} }
+    @keyframes orbit { from { transform: rotate(0deg) translateX(90px) rotate(0deg);} to { transform: rotate(360deg) translateX(90px) rotate(-360deg);} }
+    @keyframes sweep { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+    .k-card { transition: transform 120ms ease, border-color 120ms ease, background 120ms ease; }
+    .k-card:active { transform: scale(0.97); }
+  `;
+
+  if (!empresa) {
+    return (
+      <div style={estiloFundo}>
+        <style>{animacoes}</style>
+        <TelaSelecionarEmpresa onSelecionar={setEmpresa} />
+      </div>
+    );
+  }
+
   if (!usuario) {
     return (
-      <div style={{ fontFamily: SANS, background: `radial-gradient(ellipse at 50% -10%, #221310 0%, ${C.bg0} 55%)`, minHeight: "100%" }}>
-        <style>{`
-          @keyframes rotL { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
-          @keyframes rotR { from { transform: rotate(360deg);} to { transform: rotate(0deg);} }
-          @keyframes pulseCore { 0%,100% { opacity: 0.6; transform: scale(1);} 50% { opacity: 0.95; transform: scale(1.05);} }
-          @keyframes orbit { from { transform: rotate(0deg) translateX(90px) rotate(0deg);} to { transform: rotate(360deg) translateX(90px) rotate(-360deg);} }
-          @keyframes sweep { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
-          .k-card { transition: transform 120ms ease, border-color 120ms ease, background 120ms ease; }
-          .k-card:active { transform: scale(0.97); }
-        `}</style>
-        <TelaLogin onEntrar={setUsuario} />
+      <div style={estiloFundo}>
+        <style>{animacoes}</style>
+        <TelaLogin empresa={empresa} onEntrar={setUsuario} voltar={() => setEmpresa(null)} />
       </div>
     );
   }
@@ -803,13 +882,7 @@ export default function KarnoppIA() {
   if (carregando) {
     return (
       <div style={{ fontFamily: SANS, background: C.bg0, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-        <style>{`
-          @keyframes rotL { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
-          @keyframes rotR { from { transform: rotate(360deg);} to { transform: rotate(0deg);} }
-          @keyframes pulseCore { 0%,100% { opacity: 0.6; transform: scale(1);} 50% { opacity: 0.95; transform: scale(1.05);} }
-          @keyframes orbit { from { transform: rotate(0deg) translateX(90px) rotate(0deg);} to { transform: rotate(360deg) translateX(90px) rotate(-360deg);} }
-          @keyframes sweep { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
-        `}</style>
+        <style>{animacoes}</style>
         <NucleoIA />
         <div style={{ fontFamily: MONO, fontSize: 12, color: C.gold, letterSpacing: 1.5 }}>CARREGANDO DADOS DO BANCO…</div>
       </div>
@@ -829,7 +902,7 @@ export default function KarnoppIA() {
   ];
 
   return (
-    <div style={{ fontFamily: SANS, background: `radial-gradient(ellipse at 50% -10%, #221310 0%, ${C.bg0} 55%)`, minHeight: "100%", padding: "18px 14px 44px" }}>
+    <div style={{ fontFamily: SANS, background: `radial-gradient(ellipse at 50% -10%, #0d1424 0%, ${C.bg0} 55%)`, minHeight: "100%", padding: "18px 14px 44px" }}>
       <style>{`
         @keyframes rotL { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
         @keyframes rotR { from { transform: rotate(360deg);} to { transform: rotate(0deg);} }
@@ -846,14 +919,14 @@ export default function KarnoppIA() {
 
       <div style={{ maxWidth: 460, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 4 }}>
-          <div style={{ fontFamily: MONO, fontSize: 13.5, letterSpacing: 4, color: C.text, fontWeight: 500 }}>KARNOPP</div>
-          <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: 2, color: C.gold, marginTop: 3 }}>INTELIGÊNCIA IMOBILIÁRIA</div>
+          <div style={{ fontFamily: SANS, fontSize: 20, letterSpacing: 3, color: C.text, fontWeight: 600 }}>{empresa.nome.toUpperCase()}</div>
+          <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: 1.5, color: C.textFaint, marginTop: 4 }}>powered by POLARIS INTELLIGENCE</div>
         </div>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, margin: "10px 0 6px" }}>
           <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.gold, boxShadow: `0 0 6px ${C.goldGlow}`, animation: "pulseCore 3s ease-in-out infinite" }} />
           <span style={{ fontFamily: MONO, fontSize: 13.5, letterSpacing: 1.5, color: C.textFaint }}>IA OPERACIONAL — 100%</span>
         </div>
-        <div style={{ textAlign: "center", fontFamily: MONO, fontSize: 12, color: C.gold, marginBottom: 20 }}>{usuario.nome} · {usuario.cargo}</div>
+        <div style={{ textAlign: "center", fontFamily: MONO, fontSize: 12, color: C.gold, marginBottom: 20 }}>{usuario.email}</div>
 
         <div className="tabbar" style={{ display: "flex", gap: 8, marginBottom: 22, overflowX: "auto", paddingBottom: 4 }}>
           {tabs.map(t => (
